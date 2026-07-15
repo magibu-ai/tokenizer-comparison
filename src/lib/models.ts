@@ -112,30 +112,6 @@ export const COMPARISON_MODELS: TokenizerModel[] = [
     group: 'Z.ai',
     sizeMB: 20,
   },
-  {
-    id: 'turkish-llama-8b',
-    label: 'Turkish-Llama-8b (YTU Cosmos)',
-    short: 'Turkish-Llama',
-    repoId: 'ytu-ce-cosmos/Turkish-Llama-8b-Instruct-v0.1',
-    group: 'Türkçe Modeller',
-    sizeMB: 9,
-  },
-  {
-    id: 'turkish-gpt2',
-    label: 'Turkish-GPT2-Large (YTU Cosmos)',
-    short: 'Turkish-GPT2',
-    repoId: 'ytu-ce-cosmos/turkish-gpt2-large',
-    group: 'Türkçe Modeller',
-    sizeMB: 3,
-  },
-  {
-    id: 'turkcell-llm',
-    label: 'Turkcell-LLM-7b',
-    short: 'Turkcell-LLM',
-    repoId: 'TURKCELL/Turkcell-LLM-7b-v1',
-    group: 'Türkçe Modeller',
-    sizeMB: 3,
-  },
 ];
 
 export const DEFAULT_MODEL_ID = 'gpt-4o';

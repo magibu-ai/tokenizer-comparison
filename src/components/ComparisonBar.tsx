@@ -1,11 +1,17 @@
-import type { TokenizationState } from '../lib/useTokenization';
+import type { BatchTokenizationState } from '../lib/useTokenization';
 
 interface ComparisonBarProps {
   leftLabel: string;
   rightLabel: string;
-  leftState: TokenizationState;
-  rightState: TokenizationState;
-  hasText: boolean;
+  leftState: BatchTokenizationState;
+  rightState: BatchTokenizationState;
+  blocks: readonly ComparisonBlock[];
+}
+
+export interface ComparisonBlock {
+  id: string;
+  label: string;
+  text: string;
 }
 
 const numberFormat = new Intl.NumberFormat('tr-TR');
@@ -15,43 +21,85 @@ export function ComparisonBar({
   rightLabel,
   leftState,
   rightState,
-  hasText,
+  blocks,
 }: ComparisonBarProps) {
-  if (!hasText) {
-    return <div className="compare compare-hint">Karşılaştırmak için yukarıya bir metin yazın.</div>;
+  const filledBlocks = blocks.filter((block) => block.text.length > 0);
+
+  if (filledBlocks.length === 0) {
+    return (
+      <div className="compare compare-hint">
+        Özet karşılaştırmayı görmek için aşağıdaki bloklardan birine metin yazın.
+      </div>
+    );
   }
   if (leftState.status === 'error' || rightState.status === 'error') {
-    return null;
+    return (
+      <div className="compare compare-hint compare-hint-error">
+        Tokenizer yüklenemedi. Ayrıntı bölümünden yeniden deneyebilirsiniz.
+      </div>
+    );
   }
   if (leftState.status !== 'ready' || rightState.status !== 'ready') {
     return (
-      <div className="compare compare-hint">Tokenizer'lar yükleniyor, karşılaştırma birazdan hazır…</div>
+      <div className="compare compare-hint">
+        Tokenizer'lar yükleniyor, özet karşılaştırma birazdan hazır…
+      </div>
     );
   }
 
-  const left = leftState.result.ids.length;
-  const right = rightState.result.ids.length;
-  const max = Math.max(left, right);
-  if (max === 0) return null;
-
-  const equal = left === right;
-  let verdict: string;
-  if (equal) {
-    verdict = `İki tokenizer da aynı sayıda token üretti (${numberFormat.format(left)}).`;
-  } else {
-    const winner = left < right ? leftLabel : rightLabel;
-    const pct = Math.round((1 - Math.min(left, right) / max) * 100);
-    verdict = `${winner} bu metni %${pct} daha az tokenle kodluyor.`;
-  }
+  const comparisons = filledBlocks.map((block) => ({
+    ...block,
+    left: leftState.results.get(block.id)?.ids.length ?? 0,
+    right: rightState.results.get(block.id)?.ids.length ?? 0,
+  }));
+  const globalMax = Math.max(...comparisons.flatMap(({ left, right }) => [left, right]));
+  if (globalMax === 0) return null;
 
   return (
-    <div className="compare">
-      <div className="compare-bars">
-        <CompareRow label={leftLabel} count={left} max={max} win={!equal && left < right} />
-        <CompareRow label={rightLabel} count={right} max={max} win={!equal && right < left} />
+    <section className="compare compare-summary" aria-labelledby="comparison-title">
+      <div className="compare-heading">
+        <div>
+          <h2 id="comparison-title">Tüm metinlerin özeti</h2>
+          <p>Çubukların tamamı aynı token ölçeğini kullanır.</p>
+        </div>
       </div>
-      <div className={`compare-verdict${equal ? '' : ' compare-verdict-win'}`}>{verdict}</div>
-    </div>
+
+      <div className="compare-groups">
+        {comparisons.map(({ id, label, left, right }) => {
+          const equal = left === right;
+          const winner = left < right ? leftLabel : rightLabel;
+          const pct = equal
+            ? 0
+            : Math.round((1 - Math.min(left, right) / Math.max(left, right)) * 100);
+          const verdict = equal
+            ? `Eşit: ${numberFormat.format(left)} token`
+            : `${winner} %${pct} daha az token`;
+
+          return (
+            <div className="compare-group" key={id}>
+              <div className="compare-group-header">
+                <span className="compare-block-label">{label}</span>
+                <span className={`compare-group-verdict${equal ? '' : ' is-win'}`}>{verdict}</span>
+              </div>
+              <div className="compare-bars">
+                <CompareRow
+                  label={leftLabel}
+                  count={left}
+                  max={globalMax}
+                  win={!equal && left < right}
+                />
+                <CompareRow
+                  label={rightLabel}
+                  count={right}
+                  max={globalMax}
+                  win={!equal && right < left}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 

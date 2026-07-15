@@ -3,46 +3,87 @@ import type { PreTrainedTokenizer } from '@huggingface/transformers';
 import { EMPTY_RESULT, getTokenizer, tokenize } from './tokenizer';
 import type { TokenizationResult } from './tokenizer';
 
-export interface TokenizationState {
+export interface TokenizationInput {
+  id: string;
+  text: string;
+}
+
+interface TokenizerLoadState {
   status: 'loading' | 'ready' | 'error';
   /** İndirme yüzdesi (0-100); önbellekten gelirse null kalabilir */
   progress: number | null;
   error: string | null;
-  result: TokenizationResult;
   retry: () => void;
 }
 
-export function useTokenization(repoId: string, text: string): TokenizationState {
+export interface TokenizationState extends TokenizerLoadState {
+  result: TokenizationResult;
+}
+
+export interface BatchTokenizationState extends TokenizerLoadState {
+  results: ReadonlyMap<string, TokenizationResult>;
+}
+
+interface LoadedTokenizer {
+  repoId: string;
+  tokenizer: PreTrainedTokenizer;
+}
+
+interface LoadError {
+  repoId: string;
+  message: string;
+}
+
+interface LoadProgress {
+  repoId: string;
+  value: number;
+}
+
+export function useBatchTokenization(
+  repoId: string,
+  inputs: readonly TokenizationInput[],
+): BatchTokenizationState {
   const [attempt, setAttempt] = useState(0);
-  const [tokenizer, setTokenizer] = useState<PreTrainedTokenizer | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<number | null>(null);
+  const [loaded, setLoaded] = useState<LoadedTokenizer | null>(null);
+  const [loadError, setLoadError] = useState<LoadError | null>(null);
+  const [loadProgress, setLoadProgress] = useState<LoadProgress | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setTokenizer(null);
-    setError(null);
-    setProgress(null);
+    setLoaded(null);
+    setLoadError(null);
+    setLoadProgress(null);
     getTokenizer(repoId, (pct) => {
-      if (!cancelled) setProgress(pct);
+      if (!cancelled) setLoadProgress({ repoId, value: pct });
     })
       .then((tok) => {
         // Tokenizer nesneleri çağrılabilir (callable); doğrudan verilirse React
         // onu updater fonksiyonu sanıp çalıştırır. Bu yüzden updater içine sarıyoruz.
-        if (!cancelled) setTokenizer(() => tok);
+        if (!cancelled) setLoaded({ repoId, tokenizer: tok });
       })
       .catch((err: unknown) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) {
+          setLoadError({ repoId, message: err instanceof Error ? err.message : String(err) });
+        }
       });
     return () => {
       cancelled = true;
     };
   }, [repoId, attempt]);
 
-  const result = useMemo(
-    () => (tokenizer ? tokenize(tokenizer, text) : EMPTY_RESULT),
-    [tokenizer, text],
-  );
+  const tokenizer = loaded?.repoId === repoId ? loaded.tokenizer : null;
+  const error = loadError?.repoId === repoId ? loadError.message : null;
+  const progress = loadProgress?.repoId === repoId ? loadProgress.value : null;
+
+  const results = useMemo(() => {
+    const nextResults = new Map<string, TokenizationResult>();
+    if (!tokenizer) return nextResults;
+
+    for (const input of inputs) {
+      nextResults.set(input.id, tokenize(tokenizer, input.text));
+    }
+    return nextResults;
+  }, [tokenizer, inputs]);
 
   const retry = useCallback(() => setAttempt((a) => a + 1), []);
 
@@ -50,7 +91,20 @@ export function useTokenization(repoId: string, text: string): TokenizationState
     status: error ? 'error' : tokenizer ? 'ready' : 'loading',
     progress,
     error,
-    result,
+    results,
     retry,
+  };
+}
+
+export function getBlockTokenizationState(
+  batch: BatchTokenizationState,
+  blockId: string,
+): TokenizationState {
+  return {
+    status: batch.status,
+    progress: batch.progress,
+    error: batch.error,
+    retry: batch.retry,
+    result: batch.results.get(blockId) ?? EMPTY_RESULT,
   };
 }
