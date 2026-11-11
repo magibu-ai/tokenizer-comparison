@@ -112,8 +112,31 @@ export const COMPARISON_MODELS: TokenizerModel[] = [
     group: 'Z.ai',
     sizeMB: 20,
   },
+  {
+    id: 're-32k',
+    label: 'Rabia Eken 32K (Türkçe BPE)',
+    short: 'RE-32K',
+    repoId: 'rabiaekenn/re-32k-turkish-tokenizer',
+    group: 'Magibu Ekip',
+    sizeMB: 3,
+  },
+  {
+    id: 're-64k',
+    label: 'Rabia Eken 64K (Türkçe BPE)',
+    short: 'RE-64K',
+    repoId: 'rabiaekenn/re-64k-turkish-tokenizer',
+    group: 'Magibu Ekip',
+    sizeMB: 5,
+  },
+  {
+    id: 're-128k',
+    label: 'Rabia Eken 128K (Türkçe BPE)',
+    short: 'RE-128K',
+    repoId: 'rabiaekenn/re-128k-turkish-tokenizer',
+    group: 'Magibu Ekip',
+    sizeMB: 10,
+  },
 ];
-
 export const DEFAULT_MODEL_ID = 'gpt-4o';
 
 /** Dropdown optgroup sırası — listedeki ilk görülme sırası korunur */
