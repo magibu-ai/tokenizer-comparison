@@ -137,7 +137,6 @@ export const COMPARISON_MODELS: TokenizerModel[] = [
     sizeMB: 10,
   },
 ];
-
 export const DEFAULT_MODEL_ID = 'gpt-4o';
 
 /** Dropdown optgroup sırası — listedeki ilk görülme sırası korunur */
